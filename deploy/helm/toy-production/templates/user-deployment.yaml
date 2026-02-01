@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      initContainers:
+        - name: wait-for-users-seed
+          image: postgres:15-alpine
+          envFrom:
+            - secretRef:
+                name: toy-production-db
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/rds-ca
+              readOnly: true
+          env:
+            - name: PGSSLROOTCERT
+              value: /etc/rds-ca/rds-combined-ca-bundle.pem
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "Waiting for users seed..."
+              until psql "$DATABASE_URL" -c "SELECT 1 FROM users WHERE id=1" >/dev/null 2>&1; do
+                sleep 3
+              done
+              echo "Users seed ready."
+      containers:
+        - name: user-service
+          image: "{{ .Values.images.userServiceRepo }}:{{ .Values.global.imageTag }}"
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/rds-ca
+              readOnly: true
+          env:
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/rds-ca/rds-combined-ca-bundle.pem
+            - name: PORT
+              value: "3000"
+          envFrom:
+            - configMapRef:
+                name: toy-production-config
+            - secretRef:
+                name: toy-production-db
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: rds-ca-bundle

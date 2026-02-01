@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: toy-production-db-init
+  namespace: {{ .Values.namespace }}
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: psql
+          image: postgres:15-alpine
+          envFrom:
+            - secretRef:
+                name: toy-production-db
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for DB..."
+              until psql "$DATABASE_URL" -c "select 1" >/dev/null 2>&1; do
+                sleep 3
+              done
+              echo "Applying init.sql..."
+              psql "$DATABASE_URL" -f /init/init.sql
+              echo "DB init complete."
+      volumes:
+        - name: init-sql
+          configMap:
+            name: toy-production-init-sql
+            items:
+              - key: init.sql
+                path: init.sql

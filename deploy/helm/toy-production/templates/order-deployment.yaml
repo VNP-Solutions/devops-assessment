@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      initContainers:
+      - name: wait-for-orders-table
+        image: postgres:15-alpine
+        envFrom:
+        - secretRef:
+            name: toy-production-db
+        volumeMounts:
+        - name: rds-ca
+          mountPath: /etc/rds-ca
+          readOnly: true
+        env:
+        - name: PGSSLROOTCERT
+          value: /etc/rds-ca/rds-combined-ca-bundle.pem
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -e
+          echo "Waiting for orders table..."
+          until psql "$DATABASE_URL" -c "SELECT 1 FROM information_schema.tables WHERE table_name='orders'" >/dev/null 2>&1; do
+            sleep 3
+          done
+          echo "Orders table ready."
+      containers:
+      - name: order-service
+        image: "{{ .Values.images.orderServiceRepo }}:{{ .Values.global.imageTag }}"
+        ports:
+        - containerPort: 3002
+        volumeMounts:
+        - name: rds-ca
+          mountPath: /etc/rds-ca
+          readOnly: true
+        env:
+        - name: NODE_EXTRA_CA_CERTS
+          value: /etc/rds-ca/rds-combined-ca-bundle.pem
+        - name: PORT
+          value: "3002"
+        envFrom:
+        - configMapRef:
+            name: toy-production-config
+        - secretRef:
+            name: toy-production-db
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3002
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3002
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 150m
+            memory: 256Mi
+          limits:
+            cpu: 700m
+            memory: 768Mi
+      volumes:
+      - name: rds-ca
+        configMap:
+          name: rds-ca-bundle

@@ -1,0 +1,2 @@
+/infra/terraform/envs/dev/.terraform/
+/infra/terraform/envs/dev/.terraform.lock.hcl

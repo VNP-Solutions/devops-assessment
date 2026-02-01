@@ -1,0 +1,30 @@
+namespace: toy-production
+
+global:
+  imageTag: "local"
+  logLevel: "info"
+  dbConnectionLimit: "5"
+  apiSimulatedLatency: "0"
+  apiErrorSampling: "0.0"
+  httpClientTimeout: "2000"
+  httpClientRetries: "0"
+  httpClientRetryDelay: "100"
+  healthDeepCheck: "true"
+  useRedisCache: "true"
+  redisTtl: "60"
+  awsRegion: "us-east-1"
+images:
+  userServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-user-service"
+  productServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-product-service"
+  orderServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-order-service"
+redis:
+  url: "redis://toy-production-dev-redis.itnjhu.ng.0001.use1.cache.amazonaws.com:6379"
+databaseSecret:
+  awsSecretName: "toy-production-dev/database"
+  property: "database_url"
+ingress:
+  enabled: true
+  className: "alb"
+  scheme: "internet-facing"
+  loadBalancerName: "toy-production-dev-alb"
+  listenPorts: '[{"HTTP": 80}]'

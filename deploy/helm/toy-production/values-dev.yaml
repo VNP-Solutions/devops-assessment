@@ -1,0 +1,15 @@
+namespace: toy-production
+
+global:
+  imageTag: "manual-20260128132358"
+  awsRegion: "us-east-1"
+  healthDeepCheck: "false"
+images:
+  userServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-user-service"
+  productServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-product-service"
+  orderServiceRepo: "222066942466.dkr.ecr.us-east-1.amazonaws.com/toy-production-dev-order-service"
+redis:
+  url: "redis://toy-production-dev-redis.itnjhu.ng.0001.use1.cache.amazonaws.com:6379"
+databaseSecret:
+  awsSecretName: "toy-production-dev/database"
+  property: "database_url"

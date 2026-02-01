@@ -1,0 +1,11 @@
+output "cluster_name" { value = module.eks.cluster_name }
+output "cluster_region" { value = var.aws_region }
+output "ecr_user_repo" { value = aws_ecr_repository.user.repository_url }
+output "ecr_product_repo" { value = aws_ecr_repository.product.repository_url }
+output "ecr_order_repo" { value = aws_ecr_repository.order.repository_url }
+output "rds_endpoint" { value = aws_db_instance.postgres.address }
+output "redis_endpoint" { value = aws_elasticache_replication_group.redis.primary_endpoint_address }
+output "db_secret_name" { value = aws_secretsmanager_secret.db.name }
+output "github_actions_role_arn" { value = aws_iam_role.github_actions.arn }
+output "eso_irsa_role_arn" { value = aws_iam_role.irsa["eso"].arn }
+output "fluentbit_irsa_role_arn" { value = aws_iam_role.irsa["fluentbit"].arn }

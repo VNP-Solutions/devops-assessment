@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: toy-production-config
+  namespace: {{ .Values.namespace }}
+data:
+  LOG_LEVEL: {{ .Values.global.logLevel | quote }}
+  DB_CONNECTION_LIMIT: {{ .Values.global.dbConnectionLimit | quote }}
+  API_SIMULATED_LATENCY: {{ .Values.global.apiSimulatedLatency | quote }}
+  API_ERROR_SAMPLING: {{ .Values.global.apiErrorSampling | quote }}
+  USER_SERVICE_URL: "http://user-service:3000"
+  PRODUCT_SERVICE_URL: "http://product-service:3001"
+  HTTP_CLIENT_TIMEOUT: {{ .Values.global.httpClientTimeout | quote }}
+  HTTP_CLIENT_RETRIES: {{ .Values.global.httpClientRetries | quote }}
+  HTTP_CLIENT_RETRY_DELAY: {{ .Values.global.httpClientRetryDelay | quote }}
+  HEALTH_DEEP_CHECK: {{ .Values.global.healthDeepCheck | quote }}
+  USE_REDIS_CACHE: {{ .Values.global.useRedisCache | quote }}
+  REDIS_TTL: {{ .Values.global.redisTtl | quote }}
+  REDIS_URL: {{ .Values.redis.url | quote }}
+  BUILD_VERSION: {{ .Values.global.imageTag | quote }}

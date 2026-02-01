@@ -1,0 +1,71 @@
+name: build-and-deploy
+on:
+  push:
+    branches: ["main"]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      HELM_RELEASE: ${{ vars.HELM_RELEASE }}
+      K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          cd assessment
+          USER_REPO="${REGISTRY}/toy-production-dev-user-service"
+          PRODUCT_REPO="${REGISTRY}/toy-production-dev-product-service"
+          ORDER_REPO="${REGISTRY}/toy-production-dev-order-service"
+          docker build -f services/user-service/Dockerfile \
+            -t "${USER_REPO}:${IMAGE_TAG}" .
+          docker build -f services/product-service/Dockerfile \
+            -t "${PRODUCT_REPO}:${IMAGE_TAG}" .
+          docker build -f services/order-service/Dockerfile \
+            -t "${ORDER_REPO}:${IMAGE_TAG}" .
+          docker push "${USER_REPO}:${IMAGE_TAG}"
+          docker push "${PRODUCT_REPO}:${IMAGE_TAG}"
+          docker push "${ORDER_REPO}:${IMAGE_TAG}"
+
+      - name: Set kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "${AWS_REGION}" \
+            --name "${EKS_CLUSTER_NAME}"
+          kubectl get nodes
+
+      - name: Deploy Helm chart
+        run: |
+          helm upgrade --install "${HELM_RELEASE}" deploy/helm/toy-production \
+            -n "${K8S_NAMESPACE}" \
+            --create-namespace \
+            -f deploy/helm/toy-production/values-dev.yaml \
+            --set global.imageTag="${IMAGE_TAG}" \
+            --set ingress.enabled=true \
+            --wait --timeout 20m
+
+
+      - name: Smoke test (acceptance)
+        run: |
+          ALB_HOSTNAME=$(kubectl get ingress -n "${K8S_NAMESPACE}" toy-production \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          BASE_URL="http://${ALB_HOSTNAME}" ./assessment/scripts/acceptance.sh
